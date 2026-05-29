@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.audd.advanced.AsyncAdvanced;
 import io.audd.customcatalog.AsyncCustomCatalog;
 import io.audd.internal.HttpClient;
+import io.audd.internal.Json;
 import io.audd.internal.ResponseDecoder;
 import io.audd.internal.RetryClass;
 import io.audd.internal.RetryPolicy;
@@ -30,7 +31,7 @@ import java.util.function.Consumer;
  * {@link AudD}; safe with try-with-resources.
  */
 public final class AsyncAudD implements AutoCloseable {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private final HttpClient http;
     private final HttpClient enterpriseHttp;

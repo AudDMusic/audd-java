@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.audd.errors.AudDInvalidRequestError;
 import io.audd.errors.AudDSerializationError;
+import io.audd.internal.Json;
 import io.audd.models.CallbackEvent;
 import io.audd.models.StreamCallbackMatch;
 import io.audd.models.StreamCallbackNotification;
@@ -26,7 +27,7 @@ import java.util.Map;
 public final class CallbackHelpers {
 
     private static final int LONGPOLL_CATEGORY_LEN = 9;
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private CallbackHelpers() {}
 

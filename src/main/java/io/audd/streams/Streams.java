@@ -8,6 +8,7 @@ import io.audd.errors.AudDInvalidRequestError;
 import io.audd.errors.AudDSerializationError;
 import io.audd.internal.HttpClient;
 import io.audd.internal.HttpResponse;
+import io.audd.internal.Json;
 import io.audd.internal.ResponseDecoder;
 import io.audd.internal.RetryPolicy;
 import io.audd.models.CallbackEvent;
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
 
 /** Sync streams namespace. */
 public final class Streams {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
     private static final int NO_CALLBACK_ERROR_CODE = 19;
 
     static final String PREFLIGHT_NO_CALLBACK_HINT =

@@ -31,7 +31,7 @@ public final class HttpClient implements AutoCloseable {
     public static final long DEFAULT_READ_TIMEOUT_S = 60;
     public static final long ENTERPRISE_READ_TIMEOUT_S = 3600;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private final AtomicReference<String> apiToken;
     private final OkHttpClient http;

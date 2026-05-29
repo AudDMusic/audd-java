@@ -6,6 +6,7 @@ import io.audd.customcatalog.CustomCatalog;
 import io.audd.errors.AudDConnectionError;
 import io.audd.internal.HttpClient;
 import io.audd.internal.HttpResponse;
+import io.audd.internal.Json;
 import io.audd.internal.ResponseDecoder;
 import io.audd.internal.RetryClass;
 import io.audd.internal.RetryPolicy;
@@ -49,7 +50,7 @@ public final class AudD implements AutoCloseable {
         + "Get a token at https://dashboard.audd.io and pass it as AudD.builder().apiToken(...) "
         + "or set " + API_TOKEN_ENV_VAR + ".";
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private static final java.util.logging.Logger LOGGER =
             java.util.logging.Logger.getLogger("io.audd");

@@ -8,6 +8,7 @@ import io.audd.errors.AudDSerializationError;
 import io.audd.errors.ErrorMapping;
 import io.audd.internal.HttpClient;
 import io.audd.internal.HttpResponse;
+import io.audd.internal.Json;
 import io.audd.internal.RetryPolicy;
 import io.audd.models.LyricsResult;
 
@@ -25,7 +26,7 @@ import java.util.function.Consumer;
  * main client.
  */
 public final class Advanced {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private final HttpClient http;
     private final RetryPolicy recognitionPolicy;

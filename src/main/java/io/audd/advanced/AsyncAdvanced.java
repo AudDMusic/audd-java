@@ -6,6 +6,7 @@ import io.audd.errors.AudDApiError;
 import io.audd.errors.AudDSerializationError;
 import io.audd.errors.ErrorMapping;
 import io.audd.internal.HttpClient;
+import io.audd.internal.Json;
 import io.audd.internal.RetryPolicy;
 import io.audd.models.LyricsResult;
 
@@ -19,7 +20,7 @@ import java.util.function.Consumer;
 
 /** Async advanced namespace — mirror of {@link Advanced}. */
 public final class AsyncAdvanced {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = Json.mapper();
 
     private final HttpClient http;
     private final RetryPolicy recognitionPolicy;
