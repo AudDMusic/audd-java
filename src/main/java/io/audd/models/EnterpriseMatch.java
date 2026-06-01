@@ -23,6 +23,19 @@ public final class EnterpriseMatch extends ForwardCompatible {
     @JsonProperty("start_offset") public Integer startOffset;
     @JsonProperty("end_offset") public Integer endOffset;
 
+    /**
+     * Where this song starts in the user's file, in seconds. Computed from the
+     * chunk offset plus {@link #startOffset}; null when the chunk offset can't
+     * be parsed. Not a wire field.
+     */
+    @JsonIgnore public Double startSeconds;
+    /**
+     * Where this song ends in the user's file, in seconds. Computed from the
+     * chunk offset plus {@link #endOffset}; null when the chunk offset can't
+     * be parsed. Not a wire field.
+     */
+    @JsonIgnore public Double endSeconds;
+
     public Integer score() { return score; }
     public String timecode() { return timecode; }
     public String artist() { return artist; }
@@ -35,6 +48,8 @@ public final class EnterpriseMatch extends ForwardCompatible {
     public String songLink() { return songLink; }
     public Integer startOffset() { return startOffset; }
     public Integer endOffset() { return endOffset; }
+    public Double startSeconds() { return startSeconds; }
+    public Double endSeconds() { return endSeconds; }
 
     @JsonIgnore
     public String thumbnailUrl() {

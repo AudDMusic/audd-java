@@ -140,9 +140,14 @@ Valid `returnMetadata` values: `apple_music`, `spotify`, `deezer`,
 
 For longer audio files, use `audd.recognizeEnterprise(source,
 opts)` — it returns `List<EnterpriseMatch>`. Each `EnterpriseMatch`
-carries the same core tags plus `score()`, `startOffset()`, `endOffset()`,
-`isrc()`, `upc()`. Access to `isrc`, `upc`, and `score` requires a Startup
-plan or higher — [contact us](mailto:api@audd.io) for enterprise features.
+carries the same core tags plus `score()`, `startSeconds()`, `endSeconds()`,
+`startOffset()`, `endOffset()`, `isrc()`, `upc()`. `startSeconds()` and
+`endSeconds()` are where the song plays in your file, in seconds — precise
+because accurate offsets are requested by default (pass
+`accurateOffsets(false)` to opt out). Behind them, `startOffset()` and
+`endOffset()` are the raw fragment-relative milliseconds. Access to `isrc`,
+`upc`, and `score` requires a Startup plan or higher — [contact
+us](mailto:api@audd.io) for enterprise features.
 
 ### Reading additional metadata
 

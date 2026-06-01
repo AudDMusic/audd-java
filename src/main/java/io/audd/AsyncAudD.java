@@ -152,7 +152,10 @@ public final class AsyncAudD implements AutoCloseable {
                     for (JsonNode chunkNode : result) {
                         try {
                             EnterpriseChunkResult chunk = MAPPER.treeToValue(chunkNode, EnterpriseChunkResult.class);
-                            if (chunk != null && chunk.songs() != null) out.addAll(chunk.songs());
+                            if (chunk != null && chunk.songs() != null) {
+                                AudD.applyChunkPositions(chunk);
+                                out.addAll(chunk.songs());
+                            }
                         } catch (Exception e) {
                             throw new io.audd.errors.AudDSerializationError("Failed to decode EnterpriseChunkResult", resp.rawText());
                         }

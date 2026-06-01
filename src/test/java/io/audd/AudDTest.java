@@ -152,6 +152,36 @@ class AudDTest {
     }
 
     @Test
+    void recognizeEnterprise_anchorsSongsToFilePositions() throws Exception {
+        server.enqueue(new MockResponse().setBody(
+            "{\"status\":\"success\",\"result\":["
+            + "{\"songs\":[{\"score\":81,\"artist\":\"A\",\"title\":\"B\","
+            + "\"start_offset\":4200,\"end_offset\":11800}],\"offset\":\"00:01:00\"},"
+            + "{\"songs\":[{\"score\":70,\"artist\":\"C\",\"title\":\"D\","
+            + "\"start_offset\":1000,\"end_offset\":2000}]}]}"));
+
+        List<EnterpriseMatch> matches = audd.recognizeEnterprise("https://example.com/audio.mp3",
+            EnterpriseOptions.builder().limit(1).build());
+        assertThat(matches).hasSize(2);
+        // Chunk offset "00:01:00" = 60s; 60 + 4200/1000 = 64.2, 60 + 11800/1000 = 71.8.
+        assertThat(matches.get(0).startSeconds()).isEqualTo(64.2);
+        assertThat(matches.get(0).endSeconds()).isEqualTo(71.8);
+        // Chunk with absent offset -> positions stay null.
+        assertThat(matches.get(1).startSeconds()).isNull();
+        assertThat(matches.get(1).endSeconds()).isNull();
+    }
+
+    @Test
+    void recognizeEnterprise_defaultRequestSendsAccurateOffsets() throws Exception {
+        server.enqueue(new MockResponse().setBody("{\"status\":\"success\",\"result\":[]}"));
+
+        audd.recognizeEnterprise("https://example.com/audio.mp3");
+
+        RecordedRequest req = server.takeRequest();
+        assertThat(req.getBody().readUtf8()).contains("accurate_offsets").contains("true");
+    }
+
+    @Test
     void close_isIdempotent() {
         audd.close();
         audd.close(); // should not throw

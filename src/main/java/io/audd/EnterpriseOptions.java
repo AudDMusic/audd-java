@@ -58,7 +58,9 @@ public final class EnterpriseOptions {
         private Integer limit;
         private Integer skipFirstSeconds;
         private Boolean useTimecode;
-        private Boolean accurateOffsets;
+        // Accurate offsets are on by default so startSeconds/endSeconds land on
+        // exact positions in the user's file. Pass accurateOffsets(false) to opt out.
+        private Boolean accurateOffsets = Boolean.TRUE;
         private Long timeoutMs;
         private Map<String, String> extraParameters;
 

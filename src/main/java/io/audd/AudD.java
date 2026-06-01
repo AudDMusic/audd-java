@@ -209,6 +209,7 @@ public final class AudD implements AutoCloseable {
             try {
                 EnterpriseChunkResult chunk = MAPPER.treeToValue(chunkNode, EnterpriseChunkResult.class);
                 if (chunk != null && chunk.songs() != null) {
+                    applyChunkPositions(chunk);
                     out.addAll(chunk.songs());
                 }
             } catch (Exception e) {
@@ -296,6 +297,46 @@ public final class AudD implements AutoCloseable {
             return SourcePreparer.prepare(source);
         } catch (IOException e) {
             throw new AudDConnectionError("could not prepare source: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parse an enterprise chunk offset ({@code "SS"}, {@code "MM:SS"},
+     * {@code "HH:MM:SS"}, or a plain number) into seconds. Returns null when the
+     * value is null/empty/unparseable. Never throws.
+     */
+    static Double offsetToSeconds(String o) {
+        if (o == null) return null;
+        String s = o.trim();
+        if (s.isEmpty()) return null;
+        try {
+            String[] parts = s.split(":");
+            if (parts.length == 1) {
+                return Double.parseDouble(parts[0].trim());
+            }
+            double total = 0;
+            for (String part : parts) {
+                total = total * 60 + Double.parseDouble(part.trim());
+            }
+            return total;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Anchor each song in a chunk to its position in the user's file. The chunk
+     * offset is the fragment's start in the file; per-song start/end offsets are
+     * milliseconds within the fragment. Sets startSeconds/endSeconds when the
+     * chunk offset parses; leaves them null otherwise.
+     */
+    static void applyChunkPositions(EnterpriseChunkResult chunk) {
+        Double base = offsetToSeconds(chunk.offset());
+        if (base == null) return;
+        for (EnterpriseMatch song : chunk.songs()) {
+            if (song == null) continue;
+            song.startSeconds = base + (song.startOffset == null ? 0 : song.startOffset) / 1000.0;
+            song.endSeconds = base + (song.endOffset == null ? 0 : song.endOffset) / 1000.0;
         }
     }
 
