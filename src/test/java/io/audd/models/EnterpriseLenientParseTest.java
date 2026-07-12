@@ -74,4 +74,62 @@ class EnterpriseLenientParseTest {
             assertThat(c.songs()).isNull();
         }).doesNotThrowAnyException();
     }
+
+    @Test
+    void enterpriseSong_withScoreAsNonNumericString_degradesToNull() throws Exception {
+        // score wired as a non-numeric string must degrade to null, not throw.
+        String json = "{\"songs\":[{\"artist\":\"x\",\"title\":\"y\",\"score\":\"n/a\"}]}";
+
+        EnterpriseChunkResult chunk = M.readValue(json, EnterpriseChunkResult.class);
+        EnterpriseMatch m = chunk.songs().get(0);
+        assertThat(m.artist()).isEqualTo("x");
+        assertThat(m.score()).isNull();
+    }
+
+    @Test
+    void enterpriseSong_withProviderBlockAsString_degradesAndKeepsSiblings() throws Exception {
+        // A nested provider-shaped field arriving as a bare string is skipped;
+        // the rest of the song still decodes.
+        String json = "{\"songs\":[{\"artist\":\"x\",\"title\":\"y\","
+            + "\"start_offset\":1500,\"apple_music\":\"unavailable\"}]}";
+
+        EnterpriseChunkResult chunk = M.readValue(json, EnterpriseChunkResult.class);
+        EnterpriseMatch m = chunk.songs().get(0);
+        assertThat(m.title()).isEqualTo("y");
+        assertThat(m.startOffset()).isEqualTo(1500);
+    }
+
+    @Test
+    void recognitionResult_withAudioIdAsNonNumericString_degradesToNull() throws Exception {
+        String json = "{\"artist\":\"a\",\"title\":\"t\",\"audio_id\":\"not-a-number\"}";
+
+        RecognitionResult r = M.readValue(json, RecognitionResult.class);
+        assertThat(r.artist()).isEqualTo("a");
+        assertThat(r.audioId()).isNull();
+    }
+
+    @Test
+    void recognitionResult_withSpotifyNameAsObject_degradesFieldNotWholeBlock() throws Exception {
+        // spotify.name (a String field) arrives as an object: skip the offending
+        // value, keep the rest of the spotify block and the outer result.
+        String json = "{\"artist\":\"a\",\"title\":\"t\",\"spotify\":{"
+            + "\"id\":\"abc123\",\"name\":{\"unexpected\":\"object\"},\"popularity\":77}}";
+
+        RecognitionResult r = M.readValue(json, RecognitionResult.class);
+        assertThat(r.title()).isEqualTo("t");
+        assertThat(r.spotify()).isNotNull();
+        assertThat(r.spotify().name()).isNull();
+        assertThat(r.spotify().id).isEqualTo("abc123");
+        assertThat(r.spotify().popularity).isEqualTo(77);
+    }
+
+    @Test
+    void recognitionResult_withSpotifyBlockAsString_degradesToNull() throws Exception {
+        // Whole spotify object typed as a scalar arriving as a string.
+        String json = "{\"artist\":\"a\",\"title\":\"t\",\"spotify\":\"n/a\"}";
+
+        RecognitionResult r = M.readValue(json, RecognitionResult.class);
+        assertThat(r.artist()).isEqualTo("a");
+        assertThat(r.spotify()).isNull();
+    }
 }

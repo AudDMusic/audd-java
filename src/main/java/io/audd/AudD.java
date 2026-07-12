@@ -219,7 +219,7 @@ public final class AudD implements AutoCloseable {
         return out;
     }
 
-    public Streams streams() {
+    public synchronized Streams streams() {
         if (streams == null) {
             streams = new Streams(http, readPolicy, mutatingPolicy, apiToken::get, onDeprecation, apiBase);
         }
@@ -250,7 +250,7 @@ public final class AudD implements AutoCloseable {
         enterpriseHttp.setApiToken(newToken);
     }
 
-    public CustomCatalog customCatalog() {
+    public synchronized CustomCatalog customCatalog() {
         if (customCatalog == null) {
             // Custom-catalog upload is metered. Auto-retry on a transport
             // failure could double-charge for the same audio fingerprinting,
@@ -266,7 +266,7 @@ public final class AudD implements AutoCloseable {
         return customCatalog;
     }
 
-    public Advanced advanced() {
+    public synchronized Advanced advanced() {
         if (advanced == null) {
             // C2: Advanced uses RECOGNITION policy (find_lyrics is metered).
             advanced = new Advanced(http, recognitionPolicy, onDeprecation, apiBase);

@@ -194,4 +194,14 @@ class AudDTest {
         assertThat(audd.customCatalog()).isNotNull();
         assertThat(audd.advanced()).isNotNull();
     }
+
+    @Test
+    void offsetToSeconds_parsesOffsetsOverOneHour() {
+        // "01:02:03" -> 1h 2m 3s = 3723s. Regression: hours must be honoured.
+        assertThat(AudD.offsetToSeconds("01:02:03")).isEqualTo(3723.0);
+        assertThat(AudD.offsetToSeconds("10:00:00")).isEqualTo(36000.0);
+        assertThat(AudD.offsetToSeconds("00:42")).isEqualTo(42.0);
+        assertThat(AudD.offsetToSeconds("90")).isEqualTo(90.0);
+        assertThat(AudD.offsetToSeconds("garbage")).isNull();
+    }
 }
