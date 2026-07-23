@@ -136,7 +136,7 @@ System.out.println("preview:     " + r.previewUrl());  // first preview across r
 ```
 
 Valid `returnMetadata` values: `apple_music`, `spotify`, `deezer`,
-`napster`, `musicbrainz`. Block accessors (`r.appleMusic()`, etc.) return
+`musicbrainz`. Block accessors (`r.appleMusic()`, etc.) return
 `null` when not requested.
 
 For longer audio files, use `audd.recognizeEnterprise(source,
