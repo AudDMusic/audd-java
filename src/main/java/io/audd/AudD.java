@@ -125,7 +125,11 @@ public final class AudD implements AutoCloseable {
     public String apiBase() { return apiBase; }
     public String enterpriseBase() { return enterpriseBase; }
 
-    /** Recognize from a URL, file path, Path, File, byte[], or InputStream. */
+    /**
+     * Recognize from a URL, file path, Path, File, byte[], or InputStream. The
+     * first 12 seconds of audio are analyzed; use {@link #recognizeEnterprise}
+     * to scan beyond them.
+     */
     public RecognitionResult recognize(Object source) {
         return recognize(source, RecognizeOptions.defaults());
     }

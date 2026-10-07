@@ -33,7 +33,8 @@ public final class CustomCatalog {
     /**
      * <strong>This is NOT how you submit audio for music recognition.</strong>
      * For recognition, use {@code AudD.recognize(...)} (or
-     * {@code AudD.recognizeEnterprise(...)} for files longer than 25 seconds).
+     * {@code AudD.recognizeEnterprise(...)} to scan beyond the first 12 seconds
+     * of a file).
      * This method adds a song to your <strong>private fingerprint catalog</strong>
      * so AudD's recognition can later identify <em>your own</em> tracks for
      * <em>your account only</em>. Requires special access — contact
