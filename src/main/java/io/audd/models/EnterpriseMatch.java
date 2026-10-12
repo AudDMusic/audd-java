@@ -8,10 +8,17 @@ import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** A single match in an enterprise recognition response. */
+/**
+ * A single match in an enterprise recognition response. Public-catalog and
+ * custom-catalog matches share this single type — fields are nullable.
+ *
+ * <p>Use {@link #isCustomMatch()} / {@link #isPublicMatch()} to disambiguate.</p>
+ */
 public final class EnterpriseMatch extends ForwardCompatible {
     @JsonProperty("score") public Integer score;
     @JsonProperty("timecode") public String timecode;
+    /** Custom-catalog match identifier (the audio_id you uploaded the track under). */
+    @JsonProperty("audio_id") public Integer audioId;
     @JsonProperty("artist") public String artist;
     @JsonProperty("title") public String title;
     @JsonProperty("album") public String album;
@@ -38,6 +45,7 @@ public final class EnterpriseMatch extends ForwardCompatible {
 
     public Integer score() { return score; }
     public String timecode() { return timecode; }
+    public Integer audioId() { return audioId; }
     public String artist() { return artist; }
     public String title() { return title; }
     public String album() { return album; }
@@ -50,6 +58,14 @@ public final class EnterpriseMatch extends ForwardCompatible {
     public Integer endOffset() { return endOffset; }
     public Double startSeconds() { return startSeconds; }
     public Double endSeconds() { return endSeconds; }
+
+    @JsonIgnore
+    public boolean isCustomMatch() { return audioId != null; }
+
+    @JsonIgnore
+    public boolean isPublicMatch() {
+        return audioId == null && (artist != null || (title != null && !title.isEmpty()));
+    }
 
     @JsonIgnore
     public String thumbnailUrl() {

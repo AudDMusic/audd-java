@@ -100,6 +100,26 @@ class EnterpriseLenientParseTest {
     }
 
     @Test
+    void enterpriseSong_withAudioIdAsNumericString_coercesToInt() throws Exception {
+        String json = "{\"songs\":[{\"score\":100,\"timecode\":\"01:45\",\"audio_id\":\"146\"}]}";
+
+        EnterpriseMatch m = M.readValue(json, EnterpriseChunkResult.class).songs().get(0);
+        assertThat(m.audioId()).isEqualTo(146);
+        assertThat(m.isCustomMatch()).isTrue();
+        assertThat(m.isPublicMatch()).isFalse();
+    }
+
+    @Test
+    void enterpriseSong_withAudioIdAsNonNumericString_degradesToNull() throws Exception {
+        String json = "{\"songs\":[{\"artist\":\"a\",\"title\":\"t\",\"audio_id\":\"not-a-number\"}]}";
+
+        EnterpriseMatch m = M.readValue(json, EnterpriseChunkResult.class).songs().get(0);
+        assertThat(m.artist()).isEqualTo("a");
+        assertThat(m.audioId()).isNull();
+        assertThat(m.isPublicMatch()).isTrue();
+    }
+
+    @Test
     void recognitionResult_withAudioIdAsNonNumericString_degradesToNull() throws Exception {
         String json = "{\"artist\":\"a\",\"title\":\"t\",\"audio_id\":\"not-a-number\"}";
 

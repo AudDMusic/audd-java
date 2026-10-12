@@ -108,6 +108,23 @@ class ContractTest {
         assertThat(m.artist()).isEqualTo("Tears For Fears");
         assertThat(m.isrc()).isEqualTo("GBUM71403885");
         assertThat(m.upc()).isEqualTo("00602547037169");
+        assertThat(m.audioId()).isNull();
+        assertThat(m.isPublicMatch()).isTrue();
+        assertThat(m.isCustomMatch()).isFalse();
+    }
+
+    @Test
+    void enterpriseCustomMatch_parsesAudioId() throws Exception {
+        JsonNode body = load("enterprise_custom_match.json");
+        List<EnterpriseChunkResult> chunks = MAPPER.readerForListOf(EnterpriseChunkResult.class)
+                .readValue(body.get("result"));
+        assertThat(chunks).hasSize(1);
+        assertThat(chunks.get(0).songs()).hasSize(1);
+        EnterpriseMatch m = chunks.get(0).songs().get(0);
+        assertThat(m.audioId()).isEqualTo(146);
+        assertThat(m.score()).isEqualTo(100);
+        assertThat(m.isCustomMatch()).isTrue();
+        assertThat(m.isPublicMatch()).isFalse();
     }
 
     @Test
