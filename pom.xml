@@ -6,7 +6,7 @@
 
   <groupId>io.audd</groupId>
   <artifactId>audd</artifactId>
-  <version>1.5.17</version>
+  <version>1.5.18</version>
   <packaging>jar</packaging>
 
   <name>AudD Java SDK</name>

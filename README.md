@@ -17,7 +17,7 @@ Maven:
 <dependency>
   <groupId>io.audd</groupId>
   <artifactId>audd</artifactId>
-  <version>1.5.17</version>
+  <version>1.5.18</version>
 </dependency>
 ```
 
@@ -26,7 +26,7 @@ Get your API token at [dashboard.audd.io](https://dashboard.audd.io).
 Gradle (Kotlin DSL):
 
 ```kotlin
-implementation("io.audd:audd:1.5.17")
+implementation("io.audd:audd:1.5.18")
 ```
 
 Java 11+. Modular consumers: `requires io.audd;`.
