@@ -32,12 +32,57 @@ jobs:
           gpg --list-keys --keyid-format=long
       - name: Verify build
         run: mvn -B verify
-      - name: Deploy to Maven Central
+      - name: Build and sign
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: mvn -B -Prelease verify -DskipTests
+      - name: Assemble the Central bundle
+        # Built by hand rather than by central-publishing-maven-plugin: the
+        # Portal rejected the plugin's upload for 1.5.18 and 1.5.19 ("Bundle
+        # has content that does NOT have a .pom file") while the same files,
+        # zipped like this, validated.
+        run: |
+          set -euo pipefail
+          V=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          D=bundle/io/audd/audd/$V
+          mkdir -p "$D"
+          cp target/audd-$V.jar target/audd-$V-sources.jar target/audd-$V-javadoc.jar "$D"/
+          cp pom.xml "$D/audd-$V.pom"
+          cp target/audd-$V.jar.asc target/audd-$V-sources.jar.asc target/audd-$V-javadoc.jar.asc target/audd-$V.pom.asc "$D"/
+          gpg --verify "$D/audd-$V.pom.asc" "$D/audd-$V.pom"
+          (cd "$D" && for f in audd-$V.jar audd-$V-sources.jar audd-$V-javadoc.jar audd-$V.pom; do
+            md5sum "$f" | cut -d' ' -f1 | tr -d '\n' > "$f.md5"
+            sha1sum "$f" | cut -d' ' -f1 | tr -d '\n' > "$f.sha1"
+            sha256sum "$f" | cut -d' ' -f1 | tr -d '\n' > "$f.sha256"
+            sha512sum "$f" | cut -d' ' -f1 | tr -d '\n' > "$f.sha512"
+          done)
+          # Files only, no directory entries.
+          (cd bundle && python3 -c "import os,zipfile;z=zipfile.ZipFile('../central-bundle.zip','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(r,f)) for r,_,fs in os.walk('io') for f in sorted(fs)];z.close()")
+          unzip -l central-bundle.zip
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+      - name: Upload to Maven Central
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: mvn -B -Prelease deploy -DskipTests
+        run: |
+          set -euo pipefail
+          AUTH=$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)
+          ID=$(curl -fsS -X POST -H "Authorization: Bearer $AUTH" \
+            -F "bundle=@central-bundle.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=io.audd:audd:$VERSION&publishingType=AUTOMATIC")
+          echo "Deployment $ID"
+          for i in $(seq 1 60); do
+            STATUS=$(curl -fsS -X POST -H "Authorization: Bearer $AUTH" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=$ID")
+            STATE=$(echo "$STATUS" | python3 -c "import sys,json;print(json.load(sys.stdin)['deploymentState'])")
+            echo "$STATE"
+            case "$STATE" in
+              PUBLISHING|PUBLISHED) exit 0 ;;
+              FAILED) echo "$STATUS"; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "Deployment $ID still $STATE after 20 minutes"; exit 1
       - name: Configure Maven settings for GitHub Packages
         env:
           GH_USER: ${{ github.actor }}
@@ -59,7 +104,7 @@ jobs:
         env:
           GH_USER: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Reuses the artifacts already in target/ from the Maven Central deploy.
+        # Reuses the artifacts already in target/ from the build above.
         # The artifactId is `audd` (the maven coordinate), distinct from the repo
         # name `audd-java`, so the jar file is `audd-<version>.jar`.
         run: |
