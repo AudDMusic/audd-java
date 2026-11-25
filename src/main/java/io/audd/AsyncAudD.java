@@ -86,16 +86,17 @@ public final class AsyncAudD implements AutoCloseable {
         if (opts != null && opts.returnMetadata() != null) base.put("return", String.join(",", opts.returnMetadata()));
         if (opts != null && opts.market() != null) base.put("market", opts.market());
 
+        Long timeoutMs = opts == null ? null : opts.timeoutMs();
         String url = apiBase + "/";
         AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
         long started = System.nanoTime();
 
-        return recognitionPolicy.runAsync(() -> doAsyncCall(http, url, base, prepared))
+        return recognitionPolicy.runAsync(() -> doAsyncCall(http, url, base, prepared, timeoutMs))
                 .whenComplete((resp, exc) -> {
                     long elapsed = (System.nanoTime() - started) / 1_000_000L;
                     if (exc != null) {
                         Map<String, Object> extras = new HashMap<>();
-                        extras.put("error_type", unwrap(exc).getClass().getSimpleName());
+                        extras.put("error_type", errorType(exc));
                         AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognize")
                                 .url(url).elapsedMs(elapsed).extras(extras).build());
                     } else if (resp != null) {
@@ -125,17 +126,18 @@ public final class AsyncAudD implements AutoCloseable {
     public CompletableFuture<List<EnterpriseMatch>> recognizeEnterprise(Object source, EnterpriseOptions opts) {
         SourcePreparer.Prepared prepared = AudD.prepareSource(source);
         Map<String, String> base = AudD.buildEnterpriseFields(opts);
+        Long timeoutMs = opts == null ? null : opts.timeoutMs();
 
         String url = enterpriseBase + "/";
         AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
         long started = System.nanoTime();
 
-        return recognitionPolicy.runAsync(() -> doAsyncCall(enterpriseHttp, url, base, prepared))
+        return recognitionPolicy.runAsync(() -> doAsyncCall(enterpriseHttp, url, base, prepared, timeoutMs))
                 .whenComplete((resp, exc) -> {
                     long elapsed = (System.nanoTime() - started) / 1_000_000L;
                     if (exc != null) {
                         Map<String, Object> extras = new HashMap<>();
-                        extras.put("error_type", unwrap(exc).getClass().getSimpleName());
+                        extras.put("error_type", errorType(exc));
                         AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognize")
                                 .url(url).elapsedMs(elapsed).extras(extras).build());
                     } else if (resp != null) {
@@ -169,6 +171,18 @@ public final class AsyncAudD implements AutoCloseable {
         return t;
     }
 
+    /**
+     * Class name of the failure for the EXCEPTION event. Behind an
+     * AudDConnectionError it names the network exception, as the sync client does.
+     */
+    private static String errorType(Throwable exc) {
+        Throwable t = unwrap(exc);
+        if (t instanceof io.audd.errors.AudDConnectionError && t.getCause() instanceof IOException) {
+            t = t.getCause();
+        }
+        return t.getClass().getSimpleName();
+    }
+
     public AsyncStreams streams() {
         if (streams == null) streams = new AsyncStreams(http, readPolicy, mutatingPolicy, apiToken::get, onDeprecation, apiBase);
         return streams;
@@ -200,11 +214,10 @@ public final class AsyncAudD implements AutoCloseable {
 
     public AsyncCustomCatalog customCatalog() {
         if (customCatalog == null) {
-            // Custom-catalog upload is metered. Auto-retry on a transport
-            // failure could double-charge for the same audio fingerprinting,
-            // so we cap customCatalog.add at exactly 1 attempt regardless of
-            // the configured maxRetries. A transient failure surfaces as a
-            // clean exception instead of a silent re-upload. Other mutating
+            // customCatalog.add is sent exactly once, whatever maxRetries is
+            // set to: a failure surfaces as an exception so the caller can
+            // check it before sending the upload again (an upload to an
+            // audio_id that already holds a song replaces it). Other mutating
             // operations (streams.add / setUrl / delete / setCallbackUrl)
             // keep the standard MUTATING policy — they're server-idempotent
             // on radioId and safe to retry on pre-upload connection errors.
@@ -227,7 +240,8 @@ public final class AsyncAudD implements AutoCloseable {
 
     private static CompletableFuture<io.audd.internal.HttpResponse> doAsyncCall(HttpClient http, String url,
                                                                                 Map<String, String> base,
-                                                                                SourcePreparer.Prepared prepared) {
+                                                                                SourcePreparer.Prepared prepared,
+                                                                                Long timeoutMs) {
         Map<String, String> data = new HashMap<>(base);
         RequestBody body;
         try {
@@ -242,6 +256,6 @@ public final class AsyncAudD implements AutoCloseable {
             f.completeExceptionally(e);
             return f;
         }
-        return http.postFormAsync(url, data, body);
+        return http.postFormAsync(url, data, body, timeoutMs);
     }
 }

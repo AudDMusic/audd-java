@@ -147,13 +147,14 @@ public final class AudD implements AutoCloseable {
             baseFields.put("market", opts.market());
         }
 
+        Long timeoutMs = opts == null ? null : opts.timeoutMs();
         String url = apiBase + "/";
         safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
         long started = System.nanoTime();
 
         HttpResponse resp;
         try {
-            resp = recognitionPolicy.runSync(() -> doRecognizeCall(http, url, baseFields, prepared));
+            resp = recognitionPolicy.runSync(() -> doRecognizeCall(http, url, baseFields, prepared, timeoutMs));
         } catch (IOException e) {
             long elapsed = (System.nanoTime() - started) / 1_000_000L;
             Map<String, Object> extras = new HashMap<>();
@@ -186,6 +187,7 @@ public final class AudD implements AutoCloseable {
     public List<EnterpriseMatch> recognizeEnterprise(Object source, EnterpriseOptions opts) {
         SourcePreparer.Prepared prepared = prepareSource(source);
         Map<String, String> baseFields = buildEnterpriseFields(opts);
+        Long timeoutMs = opts == null ? null : opts.timeoutMs();
 
         String url = enterpriseBase + "/";
         safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
@@ -193,7 +195,7 @@ public final class AudD implements AutoCloseable {
 
         HttpResponse resp;
         try {
-            resp = recognitionPolicy.runSync(() -> doRecognizeCall(enterpriseHttp, url, baseFields, prepared));
+            resp = recognitionPolicy.runSync(() -> doRecognizeCall(enterpriseHttp, url, baseFields, prepared, timeoutMs));
         } catch (IOException e) {
             long elapsed = (System.nanoTime() - started) / 1_000_000L;
             Map<String, Object> extras = new HashMap<>();
@@ -256,11 +258,10 @@ public final class AudD implements AutoCloseable {
 
     public synchronized CustomCatalog customCatalog() {
         if (customCatalog == null) {
-            // Custom-catalog upload is metered. Auto-retry on a transport
-            // failure could double-charge for the same audio fingerprinting,
-            // so we cap customCatalog.add at exactly 1 attempt regardless of
-            // the configured maxRetries. A transient failure surfaces as a
-            // clean exception instead of a silent re-upload. Other mutating
+            // customCatalog.add is sent exactly once, whatever maxRetries is
+            // set to: a failure surfaces as an exception so the caller can
+            // check it before sending the upload again (an upload to an
+            // audio_id that already holds a song replaces it). Other mutating
             // operations (streams.add / setUrl / delete / setCallbackUrl)
             // keep the standard MUTATING policy — they're server-idempotent
             // on radioId and safe to retry on pre-upload connection errors.
@@ -285,7 +286,7 @@ public final class AudD implements AutoCloseable {
     }
 
     static HttpResponse doRecognizeCall(HttpClient http, String url, Map<String, String> baseFields,
-                                        SourcePreparer.Prepared prepared) throws IOException {
+                                        SourcePreparer.Prepared prepared, Long timeoutMs) throws IOException {
         Map<String, String> fields = new HashMap<>(baseFields);
         RequestBody body = null;
         if (prepared.isUrl()) {
@@ -293,7 +294,7 @@ public final class AudD implements AutoCloseable {
         } else {
             body = prepared.reopener().open();
         }
-        return http.postForm(url, fields, body);
+        return http.postForm(url, fields, body, timeoutMs);
     }
 
     static SourcePreparer.Prepared prepareSource(Object source) {
@@ -376,14 +377,32 @@ public final class AudD implements AutoCloseable {
         public Builder apiToken(String token) { this.apiToken = token; return this; }
         public Builder maxRetries(int n) { this.maxRetries = n; return this; }
         public Builder backoffFactorMs(long ms) { this.backoffFactorMs = ms; return this; }
+        /**
+         * Read and write timeout, in seconds, for requests to {@code api.audd.io}
+         * (default {@value HttpClient#DEFAULT_READ_TIMEOUT_S}). Longpoll requests
+         * get their own read timeout, sized to the longpoll timeout.
+         */
         public Builder standardTimeoutSeconds(long s) { this.standardTimeoutSeconds = s; return this; }
+        /**
+         * Read and write timeout, in seconds, for {@code recognizeEnterprise}
+         * requests (default {@value HttpClient#ENTERPRISE_READ_TIMEOUT_S}).
+         */
         public Builder enterpriseTimeoutSeconds(long s) { this.enterpriseTimeoutSeconds = s; return this; }
+        /**
+         * Send requests through your own {@link OkHttpClient} (proxy,
+         * interceptors, TLS settings, connection pool). The SDK keeps all of
+         * its settings except the read and write timeouts, which come from
+         * {@link #standardTimeoutSeconds(long)} and
+         * {@link #enterpriseTimeoutSeconds(long)}. Closing the SDK client
+         * leaves the injected client running.
+         */
         public Builder httpClient(OkHttpClient client) { this.httpClient = client; return this; }
         public Builder onDeprecation(Consumer<String> callback) { this.onDeprecation = callback; return this; }
         /**
          * Register an inspection hook that receives lifecycle events
          * ({@link AudDEvent.Kind#REQUEST}, {@link AudDEvent.Kind#RESPONSE},
-         * {@link AudDEvent.Kind#EXCEPTION}) for every API call. Off by default.
+         * {@link AudDEvent.Kind#EXCEPTION}) for every {@code recognize} and
+         * {@code recognizeEnterprise} call, sync and async. Off by default.
          * Hook exceptions are swallowed at FINE log level so observability
          * never breaks the request path. Spec §7.7a.
          */

@@ -90,11 +90,32 @@ class StreamCallbackParseTest {
     }
 
     @Test
-    void parseCallback_emptyResults_raisesSerializationError() throws Exception {
-        JsonNode body = M.readTree("{\"result\":{\"radio_id\":1,\"results\":[]}}");
-        assertThatThrownBy(() -> CallbackHelpers.parseCallback(body))
-            .isInstanceOf(AudDSerializationError.class)
-            .hasMessageContaining("results is empty");
+    void parseCallback_emptyResults_parsesAsMatchWithNullSong() throws Exception {
+        JsonNode body = M.readTree("{\"result\":{\"radio_id\":1,\"play_length\":30,\"results\":[]}}");
+        StreamCallbackMatch match = CallbackHelpers.parseCallback(body).match().orElseThrow();
+        assertThat(match.radioId()).isEqualTo(1L);
+        assertThat(match.playLength()).isEqualTo(30);
+        assertThat(match.song()).isNull();
+        assertThat(match.alternatives()).isEmpty();
+    }
+
+    @Test
+    void parseCallback_missingResults_parsesAsMatchWithNullSong() throws Exception {
+        JsonNode body = M.readTree("{\"result\":{\"radio_id\":1}}");
+        StreamCallbackMatch match = CallbackHelpers.parseCallback(body).match().orElseThrow();
+        assertThat(match.song()).isNull();
+        assertThat(match.alternatives()).isEmpty();
+    }
+
+    @Test
+    void parseCallback_resultsEntriesThatAreNotSongs_areSkipped() throws Exception {
+        JsonNode body = M.readTree("{\"result\":{\"radio_id\":1,\"results\":"
+            + "[null,\"junk\",{\"artist\":\"A\",\"title\":\"T\",\"score\":\"95\"},{\"artist\":\"B\"}]}}");
+        StreamCallbackMatch match = CallbackHelpers.parseCallback(body).match().orElseThrow();
+        assertThat(match.song().artist()).isEqualTo("A");
+        assertThat(match.song().score()).isEqualTo(95);
+        assertThat(match.alternatives()).hasSize(1);
+        assertThat(match.alternatives().get(0).artist()).isEqualTo("B");
     }
 
     @Test

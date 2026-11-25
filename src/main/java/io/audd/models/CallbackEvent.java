@@ -10,7 +10,9 @@ import java.util.Optional;
  *
  * <pre>{@code
  * CallbackEvent event = Streams.parseCallback(requestBody);
- * event.match().ifPresent(m -> log("matched %s — %s", m.song().artist(), m.song().title()));
+ * event.match()
+ *     .map(m -> m.song())   // null when the recognition carried no songs
+ *     .ifPresent(s -> log("matched %s — %s", s.artist(), s.title()));
  * event.notification().ifPresent(n -> log("notif %d: %s", n.notificationCode(), n.notificationMessage()));
  * }</pre>
  */

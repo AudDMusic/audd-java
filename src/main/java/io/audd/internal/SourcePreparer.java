@@ -18,9 +18,10 @@ import java.nio.file.Path;
  * {@code byte[]}, {@link InputStream}.
  *
  * <p>The {@code String} branch tries URL first (must start with {@code
- * http://} / {@code https://}); otherwise treated as a file path and
- * verified to exist (better error message than a deferred FileNotFound on
- * upload).</p>
+ * http://} / {@code https://}); otherwise it is treated as a file path.
+ * File paths given as a {@code String}, {@link Path} or {@link File} must
+ * exist: a missing file throws {@link IllegalArgumentException} before any
+ * request is sent.</p>
  */
 public final class SourcePreparer {
     private static final MediaType OCTET = MediaType.parse("application/octet-stream");
@@ -62,10 +63,12 @@ public final class SourcePreparer {
         }
         if (source instanceof Path) {
             Path p = (Path) source;
+            requireExistingFile(p);
             return new Prepared(null, () -> RequestBody.create(p.toFile(), OCTET));
         }
         if (source instanceof File) {
             File f = (File) source;
+            requireExistingFile(f.toPath());
             return new Prepared(null, () -> RequestBody.create(f, OCTET));
         }
         if (source instanceof byte[]) {
@@ -79,6 +82,12 @@ public final class SourcePreparer {
         }
         throw new IllegalArgumentException("Unsupported source type: " + source.getClass().getName()
             + "; pass a URL string, a Path, a File, a byte[], or an InputStream.");
+    }
+
+    private static void requireExistingFile(Path p) {
+        if (!Files.exists(p)) {
+            throw new IllegalArgumentException("file not found: \"" + p + "\"");
+        }
     }
 
     /** Convenience for explicitly URL-only callers — bypasses type detection. */

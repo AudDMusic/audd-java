@@ -23,7 +23,7 @@
     <dependency>
       <groupId>io.audd</groupId>
       <artifactId>audd</artifactId>
-      <version>1.4.6</version>
+      <version>1.5.20</version>
     </dependency>
   </dependencies>
 

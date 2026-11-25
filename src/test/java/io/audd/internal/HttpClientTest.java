@@ -1,6 +1,8 @@
 package io.audd.internal;
 
+import okhttp3.Call;
 import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -9,10 +11,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.InterruptedIOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HttpClientTest {
     private MockWebServer server;
@@ -124,5 +131,56 @@ class HttpClientTest {
 
         HttpResponse res = client.get(server.url("/").toString(), new HashMap<>());
         assertThat(res.requestId()).isEqualTo("req-abc-123");
+    }
+
+    @Test
+    void newGetWithoutToken_sendsNoApiToken_evenWhenOneIsPassed() throws Exception {
+        server.enqueue(new MockResponse().setBody("{\"timeout\":\"no events before timeout\",\"timestamp\":1}"));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("category", "abc");
+        params.put("api_token", "test-token");
+        Call call = client.newGetWithoutToken(server.url("/longpoll/?api_token=baked-in").toString(), params, 65);
+        HttpResponse res = client.execute(call);
+        assertThat(res.httpStatus()).isEqualTo(200);
+
+        RecordedRequest req = server.takeRequest();
+        assertThat(req.getPath()).contains("category=abc").doesNotContain("api_token");
+        assertThat(req.getHeaders().toString()).doesNotContain("test-token");
+        assertThat(req.getHeader("User-Agent")).startsWith("audd-java/");
+    }
+
+    @Test
+    void injectedClient_keepsInterceptors_andGetsTheSdkTimeouts() throws Exception {
+        List<Integer> readTimeouts = new CopyOnWriteArrayList<>();
+        List<Integer> writeTimeouts = new CopyOnWriteArrayList<>();
+        OkHttpClient injected = new OkHttpClient.Builder()
+                .readTimeout(5, TimeUnit.SECONDS)
+                .addInterceptor(chain -> {
+                    readTimeouts.add(chain.readTimeoutMillis());
+                    writeTimeouts.add(chain.writeTimeoutMillis());
+                    return chain.proceed(chain.request().newBuilder().header("X-Injected", "yes").build());
+                })
+                .build();
+        server.enqueue(new MockResponse().setBody("{\"status\":\"success\"}"));
+        server.enqueue(new MockResponse().setBody("{\"status\":\"success\"}"));
+        try (HttpClient enterprise = new HttpClient("t", injected, 3600)) {
+            enterprise.postForm(server.url("/").toString(), new HashMap<>(), null);
+            enterprise.postForm(server.url("/").toString(), new HashMap<>(), null, 1_500L);
+        }
+        assertThat(readTimeouts).containsExactly(3_600_000, 1_500);
+        assertThat(writeTimeouts).containsExactly(3_600_000, 1_500);
+        assertThat(server.takeRequest().getHeader("X-Injected")).isEqualTo("yes");
+        // The injected client is the caller's: closing the SDK wrapper leaves it usable.
+        assertThat(injected.dispatcher().executorService().isShutdown()).isFalse();
+    }
+
+    @Test
+    void postForm_perRequestTimeout_capsTheWholeRequest() throws Exception {
+        server.enqueue(new MockResponse().setBody("{\"status\":\"success\"}").setHeadersDelay(1_500, TimeUnit.MILLISECONDS));
+        long started = System.nanoTime();
+        assertThatThrownBy(() -> client.postForm(server.url("/").toString(), new HashMap<>(), null, 200L))
+                .isInstanceOf(InterruptedIOException.class);
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)).isLessThan(1_200);
     }
 }

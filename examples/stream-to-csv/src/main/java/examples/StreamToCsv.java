@@ -103,7 +103,7 @@ public final class StreamToCsv {
                 LongpollOptions.builder().timeout(50).build())) {
 
             // 5. Shutdown hook for clean teardown on Ctrl-C / SIGTERM.
-            //    poll.close() unblocks the loop after the in-flight request returns.
+            //    poll.close() cancels the in-flight request and ends the loop.
             Thread mainThread = Thread.currentThread();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 stopping.set(true);

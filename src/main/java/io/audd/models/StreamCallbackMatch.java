@@ -30,7 +30,11 @@ public final class StreamCallbackMatch extends ForwardCompatible {
     public String timestamp() { return timestamp; }
     public Integer playLength() { return playLength; }
 
-    /** The top match. Always non-null on a successful parse. */
+    /**
+     * The top match, or {@code null} when the server sent the recognition
+     * with an empty {@code results} list. Longpoll never delivers such a
+     * match, so in a {@code LongpollPoll.onMatch} callback this is non-null.
+     */
     public StreamCallbackSong song() { return song; }
 
     /** Alternative candidates. Possibly empty; never null. */

@@ -17,20 +17,33 @@ import java.util.Map;
  * <p>{@code extraParameters} are additional form fields the typed params don't
  * cover. Typed params ({@code url}, {@code radio_id}, {@code callbacks}) win on
  * collision.</p>
+ *
+ * <p>{@code radioId} is any integer you choose as your handle for the
+ * stream; every constructor takes it as an {@code int} or a {@code long}.</p>
  */
 public final class AddStreamRequest {
     private final String url;
-    private final int radioId;
+    private final long radioId;
     private final String callbacks;
     private final Map<String, String> extraParameters;
 
-    public AddStreamRequest(String url, int radioId) { this(url, radioId, null, null); }
+    public AddStreamRequest(String url, int radioId) { this(url, (long) radioId, null, null); }
+
+    public AddStreamRequest(String url, long radioId) { this(url, radioId, null, null); }
 
     public AddStreamRequest(String url, int radioId, String callbacks) {
+        this(url, (long) radioId, callbacks, null);
+    }
+
+    public AddStreamRequest(String url, long radioId, String callbacks) {
         this(url, radioId, callbacks, null);
     }
 
     public AddStreamRequest(String url, int radioId, String callbacks, Map<String, String> extraParameters) {
+        this(url, (long) radioId, callbacks, extraParameters);
+    }
+
+    public AddStreamRequest(String url, long radioId, String callbacks, Map<String, String> extraParameters) {
         this.url = url;
         this.radioId = radioId;
         this.callbacks = callbacks;
@@ -40,7 +53,18 @@ public final class AddStreamRequest {
     }
 
     public String url() { return url; }
-    public int radioId() { return radioId; }
+
+    /**
+     * The radio_id as an {@code int}.
+     *
+     * @throws ArithmeticException if the request was built with a
+     *     {@code long} radio_id outside the {@code int} range
+     */
+    public int radioId() { return Math.toIntExact(radioId); }
+
+    /** The radio_id as sent to the server. */
+    long radioIdValue() { return radioId; }
+
     public String callbacks() { return callbacks; }
     public Map<String, String> extraParameters() { return extraParameters; }
 }

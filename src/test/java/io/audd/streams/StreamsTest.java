@@ -205,6 +205,44 @@ class StreamsTest {
     }
 
     @Test
+    void longRadioIds_areSentInFull() throws Exception {
+        long radioId = 5_000_000_000L;
+        for (int i = 0; i < 3; i++) {
+            server.enqueue(new MockResponse().setBody("{\"status\":\"success\",\"result\":\"ok\"}"));
+        }
+        audd.streams().add(new AddStreamRequest("https://stream.example.com/live", radioId));
+        audd.streams().setUrl(radioId, "https://stream.example.com/other");
+        audd.streams().delete(radioId);
+        for (int i = 0; i < 3; i++) {
+            assertThat(server.takeRequest().getBody().readUtf8()).contains("5000000000");
+        }
+        assertThat(audd.streams().deriveLongpollCategory(42L)).isEqualTo(audd.streams().deriveLongpollCategory(42));
+        assertThat(Streams.deriveLongpollCategory("t", 42L)).isEqualTo(Streams.deriveLongpollCategory("t", 42));
+    }
+
+    @Test
+    void addStreamRequest_intAccessor_rejectsALongOutsideIntRange() {
+        assertThat(new AddStreamRequest("u", 7L).radioId()).isEqualTo(7);
+        assertThatThrownBy(() -> new AddStreamRequest("u", 5_000_000_000L).radioId())
+            .isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
+    void longpoll_byLongRadioId_derivesTheSameCategory() throws Exception {
+        server.enqueue(new MockResponse().setBody(
+            "{\"notification\":{\"radio_id\":1,\"notification_code\":650,\"notification_message\":\"x\"},"
+            + "\"time\":1,\"timestamp\":1}"));
+        long radioId = 1L;
+        try (LongpollPoll poll = audd.streams().longpoll(radioId,
+                LongpollOptions.builder().skipCallbackCheck(true).build())) {
+            poll.onNotification(n -> poll.close());
+            poll.run();
+        }
+        assertThat(server.takeRequest().getPath())
+            .contains("category=" + audd.streams().deriveLongpollCategory(1));
+    }
+
+    @Test
     void parseCallback_isAvailableStatically() throws Exception {
         com.fasterxml.jackson.databind.JsonNode body = new com.fasterxml.jackson.databind.ObjectMapper().readTree(
             "{\"status\":\"-\",\"notification\":{\"radio_id\":1,\"notification_code\":650,\"notification_message\":\"x\"},\"time\":1}");

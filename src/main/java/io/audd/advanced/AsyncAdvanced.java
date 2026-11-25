@@ -58,6 +58,7 @@ public final class AsyncAdvanced {
         });
     }
 
+    /** Async variant of {@link Advanced#rawRequest(String, Map)}; same contract. */
     public CompletableFuture<JsonNode> rawRequest(String method, Map<String, String> params) {
         Map<String, String> finalParams = new HashMap<>(params == null ? Collections.emptyMap() : params);
         return recognitionPolicy.runAsync(() -> http.postFormAsync(apiBase + "/" + method + "/", finalParams, null))

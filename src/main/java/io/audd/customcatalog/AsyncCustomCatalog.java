@@ -28,8 +28,16 @@ public final class AsyncCustomCatalog {
         this.uploadUrl = apiBase + "/upload/";
     }
 
-    /** See {@link CustomCatalog#add(int, Object)}. NOT for music recognition. */
+    /**
+     * See {@link CustomCatalog#add(int, Object)}. NOT for music recognition.
+     * Sent once and never retried automatically.
+     */
     public CompletableFuture<Void> add(int audioId, Object source) {
+        return add((long) audioId, source);
+    }
+
+    /** {@link #add(int, Object)} for a {@code long} audio_id. */
+    public CompletableFuture<Void> add(long audioId, Object source) {
         SourcePreparer.Prepared prepared;
         try {
             prepared = SourcePreparer.prepare(source);

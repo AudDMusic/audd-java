@@ -38,6 +38,11 @@ public final class CallbackHelpers {
      * to the first 9 hex chars.
      */
     public static String deriveLongpollCategory(String apiToken, int radioId) {
+        return deriveLongpollCategory(apiToken, (long) radioId);
+    }
+
+    /** {@link #deriveLongpollCategory(String, int)} for a {@code long} radio_id. */
+    public static String deriveLongpollCategory(String apiToken, long radioId) {
         String inner = md5Hex(apiToken.getBytes(StandardCharsets.UTF_8));
         String full = md5Hex((inner + radioId).getBytes(StandardCharsets.UTF_8));
         return full.substring(0, LONGPOLL_CATEGORY_LEN);
@@ -50,9 +55,11 @@ public final class CallbackHelpers {
      * key. Exactly one of {@link CallbackEvent#match()} /
      * {@link CallbackEvent#notification()} is present on success.
      *
-     * <p>Throws {@link AudDSerializationError} when the body is missing
-     * both keys, when {@code result.results} is empty, or when the inner
-     * JSON cannot be decoded into the typed shape.</p>
+     * <p>A recognition whose {@code result.results} list is empty or missing
+     * parses to a match whose {@link StreamCallbackMatch#song()} is
+     * {@code null}. Throws {@link AudDSerializationError} when the body is
+     * missing both keys or when the inner JSON cannot be decoded into the
+     * typed shape.</p>
      */
     public static CallbackEvent parseCallback(JsonNode body) {
         if (body == null || !body.isObject()) {
@@ -131,7 +138,11 @@ public final class CallbackHelpers {
         return parseCallback(bytes);
     }
 
-    /** Decode a {@code result} block into a typed match. */
+    /**
+     * Decode a {@code result} block into a typed match. Entries of
+     * {@code results} that are not song objects are skipped; with no songs
+     * left, {@link StreamCallbackMatch#song()} is {@code null}.
+     */
     private static StreamCallbackMatch parseMatch(JsonNode resultNode, JsonNode fullBody) {
         if (resultNode == null || !resultNode.isObject()) {
             throw new AudDSerializationError(
@@ -144,21 +155,21 @@ public final class CallbackHelpers {
             throw new AudDSerializationError("callback result: " + e.getMessage(), fullBody.toString());
         }
         JsonNode resultsArr = resultNode.get("results");
-        if (resultsArr == null || !resultsArr.isArray() || resultsArr.size() == 0) {
-            throw new AudDSerializationError("callback result.results is empty", fullBody.toString());
-        }
-        List<StreamCallbackSong> songs = new ArrayList<>(resultsArr.size());
-        for (JsonNode el : resultsArr) {
-            try {
-                StreamCallbackSong s = MAPPER.treeToValue(el, StreamCallbackSong.class);
-                if (s != null) s.setRawResponse(el);
-                songs.add(s);
-            } catch (Exception e) {
-                throw new AudDSerializationError(
-                    "callback result.results entry: " + e.getMessage(), fullBody.toString());
+        List<StreamCallbackSong> songs = new ArrayList<>();
+        if (resultsArr != null && resultsArr.isArray()) {
+            for (JsonNode el : resultsArr) {
+                if (el == null || !el.isObject()) continue;
+                try {
+                    StreamCallbackSong s = MAPPER.treeToValue(el, StreamCallbackSong.class);
+                    if (s == null) continue;
+                    s.setRawResponse(el);
+                    songs.add(s);
+                } catch (Exception e) {
+                    // Lenient: one undecodable entry doesn't sink the event.
+                }
             }
         }
-        m.setSong(songs.get(0));
+        m.setSong(songs.isEmpty() ? null : songs.get(0));
         m.setAlternatives(songs.size() > 1 ? songs.subList(1, songs.size()) : Collections.emptyList());
         m.setRawResponse(fullBody);
         return m;

@@ -63,6 +63,11 @@ public final class Streams {
 
     /** Compute the 9-char longpoll category for this token + a radio_id. */
     public String deriveLongpollCategory(int radioId) {
+        return deriveLongpollCategory((long) radioId);
+    }
+
+    /** {@link #deriveLongpollCategory(int)} for a {@code long} radio_id. */
+    public String deriveLongpollCategory(long radioId) {
         return CallbackHelpers.deriveLongpollCategory(apiTokenSupplier.get(), radioId);
     }
 
@@ -91,7 +96,16 @@ public final class Streams {
         return CallbackHelpers.parseCallback(body);
     }
 
+    /**
+     * Compute the 9-char longpoll category for a token + a radio_id, locally
+     * and without a network call.
+     */
     public static String deriveLongpollCategory(String apiToken, int radioId) {
+        return CallbackHelpers.deriveLongpollCategory(apiToken, radioId);
+    }
+
+    /** {@link #deriveLongpollCategory(String, int)} for a {@code long} radio_id. */
+    public static String deriveLongpollCategory(String apiToken, long radioId) {
         return CallbackHelpers.deriveLongpollCategory(apiToken, radioId);
     }
 
@@ -129,12 +143,16 @@ public final class Streams {
         Map<String, String> data = new HashMap<>();
         if (req.extraParameters() != null) data.putAll(req.extraParameters());
         data.put("url", req.url());
-        data.put("radio_id", String.valueOf(req.radioId()));
+        data.put("radio_id", String.valueOf(req.radioIdValue()));
         if (req.callbacks() != null) data.put("callbacks", req.callbacks());
         post("addStream", data, mutatingPolicy);
     }
 
     public void setUrl(int radioId, String url) {
+        setUrl((long) radioId, url);
+    }
+
+    public void setUrl(long radioId, String url) {
         Map<String, String> data = new HashMap<>();
         data.put("radio_id", String.valueOf(radioId));
         data.put("url", url);
@@ -142,6 +160,10 @@ public final class Streams {
     }
 
     public void delete(int radioId) {
+        delete((long) radioId);
+    }
+
+    public void delete(long radioId) {
         Map<String, String> data = new HashMap<>();
         data.put("radio_id", String.valueOf(radioId));
         post("deleteStream", data, mutatingPolicy);
@@ -168,12 +190,13 @@ public final class Streams {
      * Long-poll for events on a category. Returns a {@link LongpollPoll}
      * which the caller drives by registering callbacks and calling
      * {@link LongpollPoll#run()} (or {@link LongpollPoll#runAsync()}).
+     * Longpoll requests carry the category only, never the api_token.
      *
      * <p>By default performs a one-time preflight {@link #getCallbackUrl()}
-     * call before subscribing — if no callback URL is configured for the
-     * account, the longpoll endpoint silently returns "no events" forever.
-     * To skip the preflight, set {@link LongpollOptions#skipCallbackCheck()}
-     * to true.</p>
+     * call before subscribing: without a callback URL configured for the
+     * account, longpoll might never return any events despite successful
+     * song recognition. To skip the preflight, set
+     * {@link LongpollOptions#skipCallbackCheck()} to true.</p>
      */
     public LongpollPoll longpoll(String category) {
         return longpoll(category, LongpollOptions.defaults());
@@ -194,7 +217,17 @@ public final class Streams {
         return longpoll(deriveLongpollCategory(radioId), LongpollOptions.defaults());
     }
 
+    /** {@link #longpoll(int)} for a {@code long} radio_id. */
+    public LongpollPoll longpoll(long radioId) {
+        return longpoll(deriveLongpollCategory(radioId), LongpollOptions.defaults());
+    }
+
     public LongpollPoll longpoll(int radioId, LongpollOptions opts) {
+        return longpoll(deriveLongpollCategory(radioId), opts);
+    }
+
+    /** {@link #longpoll(int, LongpollOptions)} for a {@code long} radio_id. */
+    public LongpollPoll longpoll(long radioId, LongpollOptions opts) {
         return longpoll(deriveLongpollCategory(radioId), opts);
     }
 

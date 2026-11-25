@@ -55,6 +55,13 @@ public final class RecognizeOptions {
             this.market = market;
             return this;
         }
+        /**
+         * Timeout, in milliseconds, for each attempt of this call: it replaces
+         * the client's read and write timeouts and caps the whole request
+         * (connect, upload and response). A call cut off this way fails with
+         * {@link io.audd.errors.AudDConnectionError} and is not retried.
+         * {@code null} (the default) keeps the client's timeouts.
+         */
         public Builder timeoutMs(Long timeoutMs) {
             this.timeoutMs = timeoutMs;
             return this;

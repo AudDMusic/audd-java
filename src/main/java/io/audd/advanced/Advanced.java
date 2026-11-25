@@ -66,6 +66,11 @@ public final class Advanced {
     /**
      * Hit any AudD endpoint by method name and return the raw JSON body.
      * Useful for endpoints not yet wrapped by typed methods on this SDK.
+     *
+     * <p>The body comes back as the server sent it, including a
+     * {@code {"status":"error",...}} body: check {@code status} yourself.
+     * Throws {@link AudDConnectionError} on network failures and
+     * {@link AudDSerializationError} when the body is not a JSON object.</p>
      */
     public JsonNode rawRequest(String method, Map<String, String> params) {
         if (params == null) params = Collections.emptyMap();

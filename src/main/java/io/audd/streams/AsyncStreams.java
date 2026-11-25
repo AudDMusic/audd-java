@@ -51,7 +51,13 @@ public final class AsyncStreams {
         this.apiBase = apiBase;
     }
 
+    /** Compute the 9-char longpoll category for this token + a radio_id. */
     public String deriveLongpollCategory(int radioId) {
+        return deriveLongpollCategory((long) radioId);
+    }
+
+    /** {@link #deriveLongpollCategory(int)} for a {@code long} radio_id. */
+    public String deriveLongpollCategory(long radioId) {
         return CallbackHelpers.deriveLongpollCategory(apiTokenSupplier.get(), radioId);
     }
 
@@ -96,12 +102,16 @@ public final class AsyncStreams {
         Map<String, String> data = new HashMap<>();
         if (req.extraParameters() != null) data.putAll(req.extraParameters());
         data.put("url", req.url());
-        data.put("radio_id", String.valueOf(req.radioId()));
+        data.put("radio_id", String.valueOf(req.radioIdValue()));
         if (req.callbacks() != null) data.put("callbacks", req.callbacks());
         return post("addStream", data, mutatingPolicy).thenApply(b -> null);
     }
 
     public CompletableFuture<Void> setUrl(int radioId, String url) {
+        return setUrl((long) radioId, url);
+    }
+
+    public CompletableFuture<Void> setUrl(long radioId, String url) {
         Map<String, String> data = new HashMap<>();
         data.put("radio_id", String.valueOf(radioId));
         data.put("url", url);
@@ -109,6 +119,10 @@ public final class AsyncStreams {
     }
 
     public CompletableFuture<Void> delete(int radioId) {
+        return delete((long) radioId);
+    }
+
+    public CompletableFuture<Void> delete(long radioId) {
         Map<String, String> data = new HashMap<>();
         data.put("radio_id", String.valueOf(radioId));
         return post("deleteStream", data, mutatingPolicy).thenApply(b -> null);
@@ -157,7 +171,17 @@ public final class AsyncStreams {
         return longpoll(deriveLongpollCategory(radioId), LongpollOptions.defaults());
     }
 
+    /** {@link #longpoll(int)} for a {@code long} radio_id. */
+    public CompletableFuture<LongpollPoll> longpoll(long radioId) {
+        return longpoll(deriveLongpollCategory(radioId), LongpollOptions.defaults());
+    }
+
     public CompletableFuture<LongpollPoll> longpoll(int radioId, LongpollOptions opts) {
+        return longpoll(deriveLongpollCategory(radioId), opts);
+    }
+
+    /** {@link #longpoll(int, LongpollOptions)} for a {@code long} radio_id. */
+    public CompletableFuture<LongpollPoll> longpoll(long radioId, LongpollOptions opts) {
         return longpoll(deriveLongpollCategory(radioId), opts);
     }
 

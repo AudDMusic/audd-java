@@ -75,6 +75,13 @@ public final class EnterpriseOptions {
         public Builder skipFirstSeconds(Integer s) { this.skipFirstSeconds = s; return this; }
         public Builder useTimecode(Boolean b) { this.useTimecode = b; return this; }
         public Builder accurateOffsets(Boolean b) { this.accurateOffsets = b; return this; }
+        /**
+         * Timeout, in milliseconds, for each attempt of this call: it replaces
+         * the client's read and write timeouts and caps the whole request
+         * (connect, upload and response). A call cut off this way fails with
+         * {@link io.audd.errors.AudDConnectionError} and is not retried.
+         * {@code null} (the default) keeps the client's timeouts.
+         */
         public Builder timeoutMs(Long t) { this.timeoutMs = t; return this; }
         public Builder extraParameters(Map<String, String> extras) { this.extraParameters = extras; return this; }
         public EnterpriseOptions build() { return new EnterpriseOptions(this); }

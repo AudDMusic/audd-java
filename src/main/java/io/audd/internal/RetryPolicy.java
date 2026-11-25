@@ -1,5 +1,7 @@
 package io.audd.internal;
 
+import io.audd.errors.AudDConnectionError;
+
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ConnectException;
@@ -45,7 +47,8 @@ public final class RetryPolicy {
     public int maxAttempts() { return maxAttempts; }
     public long backoffFactorMs() { return backoffFactorMs; }
 
-    long backoffDelayMs(int attempt) {
+    /** Delay before retry number {@code attempt + 1}, with jitter. */
+    public long backoffDelayMs(int attempt) {
         long base = Math.min(backoffFactorMs * (1L << attempt), backoffMaxMs);
         double jitter = 0.5 + random.nextDouble();
         return (long) (base * jitter);
@@ -83,8 +86,8 @@ public final class RetryPolicy {
 
     /**
      * Pre-upload connection errors are safe to retry on RECOGNITION/MUTATING:
-     * if the request body never finished uploading, the server can't have
-     * done any metered work yet.
+     * the request never reached the server, so no recognition was metered
+     * and no change was made.
      */
     static boolean isPreUploadConnectionError(Throwable e) {
         if (e instanceof ConnectException) return true;
@@ -148,6 +151,12 @@ public final class RetryPolicy {
         throw new IllegalStateException("retry loop ended without result");
     }
 
+    /**
+     * Async variant of {@link #runSync}. The returned future fails with an
+     * {@link AudDConnectionError} (the network exception as its cause) when
+     * the last attempt fails with an {@link IOException}, so async callers
+     * see the same exception types as sync ones.
+     */
     public CompletableFuture<HttpResponse> runAsync(Supplier<CompletableFuture<HttpResponse>> call) {
         CompletableFuture<HttpResponse> out = new CompletableFuture<>();
         attemptAsync(call, 0, out);
@@ -181,15 +190,19 @@ public final class RetryPolicy {
 
     private void handleAsyncException(Supplier<CompletableFuture<HttpResponse>> call, int attempt, CompletableFuture<HttpResponse> out, Throwable exc) {
         Throwable cause = unwrap(exc);
-        if (!shouldRetryException(cause)) {
-            out.completeExceptionally(cause);
-            return;
-        }
-        if (attempt + 1 >= maxAttempts) {
-            out.completeExceptionally(cause);
+        if (!shouldRetryException(cause) || attempt + 1 >= maxAttempts) {
+            out.completeExceptionally(asSdkException(cause));
             return;
         }
         scheduleNextAttempt(call, attempt, out);
+    }
+
+    private static Throwable asSdkException(Throwable cause) {
+        if (cause instanceof IOException) {
+            String msg = cause.getMessage();
+            return new AudDConnectionError(msg == null ? "connection error" : msg, cause);
+        }
+        return cause;
     }
 
     private void scheduleNextAttempt(Supplier<CompletableFuture<HttpResponse>> call, int attempt, CompletableFuture<HttpResponse> out) {

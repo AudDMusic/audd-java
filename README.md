@@ -17,7 +17,7 @@ Maven:
 <dependency>
   <groupId>io.audd</groupId>
   <artifactId>audd</artifactId>
-  <version>1.5.19</version>
+  <version>1.5.20</version>
 </dependency>
 ```
 
@@ -26,7 +26,7 @@ Get your API token at [dashboard.audd.io](https://dashboard.audd.io).
 Gradle (Kotlin DSL):
 
 ```kotlin
-implementation("io.audd:audd:1.5.19")
+implementation("io.audd:audd:1.5.20")
 ```
 
 Java 11+. Modular consumers: `requires io.audd;`.
@@ -181,7 +181,7 @@ Typed parameters win on collision.
 
 ## Errors
 
-Everything the SDK throws extends `AudDException`:
+Every error from a request extends `AudDException`:
 
 ```
 AudDException
@@ -219,7 +219,12 @@ try {
 ```
 
 Every `AudDApiError` exposes `errorCode()`, `httpStatus()`, and
-`requestId()` for support tickets.
+`requestId()` for support tickets. `AsyncAudD` futures fail with the same
+exception types, wrapped in the usual `CompletionException` /
+`ExecutionException`.
+
+Invalid arguments, such as a file path that doesn't exist or an unsupported
+source type, throw `IllegalArgumentException` before anything is sent.
 
 ## Configuration
 
@@ -245,6 +250,12 @@ errors; recognition endpoints retry on 5xx and pre-upload connection
 failures only (no replay after a metered upload completed); mutating
 endpoints retry only on pre-upload connection failures.
 
+An injected `httpClient` keeps its proxy, interceptors and connection pool;
+the SDK sets its read and write timeouts from `standardTimeoutSeconds` and
+`enterpriseTimeoutSeconds`. For a single call, `timeoutMs(...)` on
+`RecognizeOptions` / `EnterpriseOptions` caps each attempt at that many
+milliseconds.
+
 ## Async
 
 `AsyncAudD` mirrors `AudD` and returns `CompletableFuture` from every
@@ -255,7 +266,9 @@ import io.audd.AsyncAudD;
 
 try (AsyncAudD audd = AudD.builder().apiToken("your-token").buildAsync()) {
     audd.recognize("https://audd.tech/example.mp3")
-        .thenAccept(r -> System.out.println(r.artist() + " — " + r.title()))
+        .thenAccept(r -> {
+            if (r != null) System.out.println(r.artist() + " — " + r.title());
+        })
         .join();
 }
 ```
@@ -285,8 +298,9 @@ import io.audd.models.CallbackEvent;
 // Inside your servlet / HTTP-handler:
 try (var in = httpRequest.getInputStream()) {
     CallbackEvent event = Streams.parseCallback(in);
-    event.match().ifPresent(m ->
-        System.out.println(m.song().artist() + " — " + m.song().title()));
+    event.match()
+        .map(m -> m.song())   // null when the recognition carried no songs
+        .ifPresent(s -> System.out.println(s.artist() + " — " + s.title()));
     event.notification().ifPresent(n ->
         System.out.println("notif: " + n.notificationMessage()));
 }
@@ -296,7 +310,8 @@ try (var in = httpRequest.getInputStream()) {
 `JsonNode`. The returned `CallbackEvent` has exactly one of `match()` /
 `notification()` populated. A `match` exposes the top match as `song()`
 plus any extra candidates (which may legitimately have a different
-`artist`/`title` — variant catalog releases) as `alternatives()`.
+`artist`/`title` — variant catalog releases) as `alternatives()`. `song()`
+is `null` when the server sends a recognition with an empty `results` list.
 
 #### Per-framework wiring
 
@@ -368,7 +383,17 @@ try (LongpollPoll poll = audd.streams().longpoll(radioId)) {
 
 `runAsync()` returns a `CompletableFuture<Void>` if you'd rather drive the
 loop on a daemon thread. `close()` is idempotent and safe to call from
-any thread (signal handler, shutdown hook, etc.).
+any thread (signal handler, shutdown hook, etc.); it cancels the request
+in flight, so the loop ends at once.
+
+Matches and notifications arrive in order, and each request asks only for
+events newer than the newest one already received. A match passed to `onMatch`
+always has a `song()`. `onError` fires once and ends the loop: when the
+server rejects the request (an `AudDInvalidRequestError` with the server's
+message, for example for a `timeout` outside 1–120 seconds), when network
+failures or HTTP 5xx persist through `maxRetries` attempts, or when your
+callback throws. Each request waits up to 50 seconds for events; set
+another wait with `LongpollOptions.builder().timeout(seconds)`.
 
 For browser widgets, embedded UIs, or anywhere you need to consume a
 category without leaking the API token, derive it server-side and ship
@@ -380,12 +405,16 @@ String category = Streams.deriveLongpollCategory(serverToken, radioId);
 respondWithCategory(category);    // ship to the browser
 
 // In the browser / widget — poll directly, no api_token:
-//   GET https://api.audd.io/longpoll/?category=<category>&timeout=50
+//   GET https://api.audd.io/longpoll/?category=<category>&timeout=50&since_time=<ms>
 ```
 
 You're free to drive that GET however you like — `fetch()` from
 JavaScript, `java.net.http.HttpClient` from a JVM widget, anything. The
-SDK isn't required on the consuming side.
+SDK isn't required on the consuming side. The answer is either
+`{"events":[{"timestamp":…,"data":{…}}, …]}`, where each `data` is the
+body a callback URL would receive, or `{"timeout":…,"timestamp":…}` when
+nothing happened. Send the newest `timestamp` as `since_time` on the next
+request.
 
 ## Custom catalog (advanced)
 
@@ -400,8 +429,14 @@ SDK isn't required on the consuming side.
 audd.customCatalog().add(146, Path.of("track.mp3"));
 ```
 
+`add` is sent once and never retried automatically: check the error before
+sending it again (an upload to an `audio_id` that already holds a song
+replaces it).
+
 `audd.advanced().rawRequest(method, params)` is the escape hatch for
-any AudD endpoint not yet wrapped by typed methods on this SDK.
+any AudD endpoint not yet wrapped by typed methods on this SDK. It returns
+the JSON body as the server sent it, error bodies included, so check its
+`status` field.
 
 ## License & support
 

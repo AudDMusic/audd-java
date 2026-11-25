@@ -18,10 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * customCatalog.add must <strong>never</strong> retry by default. The endpoint
- * is metered: a silent re-upload after a transport hiccup could double-charge
- * the user. These tests pin the policy in place so a future "uniformity"
- * refactor can't accidentally roll it back.
+ * customCatalog.add is sent once and never retried automatically: the caller
+ * checks the error before sending the upload again (an upload to an audio_id
+ * that already holds a song replaces it). These tests pin the policy in place
+ * so a future "uniformity" refactor can't accidentally roll it back.
  */
 class CustomCatalogTest {
     private MockWebServer server;
@@ -69,6 +69,13 @@ class CustomCatalogTest {
         assertThatThrownBy(() -> audd.customCatalog().add(123, "https://example.com/song.mp3"))
             .isInstanceOfSatisfying(AudDServerError.class, e -> assertThat(e.httpStatus()).isEqualTo(502));
         assertThat(server.getRequestCount()).isEqualTo(1);
+    }
+
+    @Test
+    void add_longAudioId_sendsItInFull() throws Exception {
+        server.enqueue(new MockResponse().setBody("{\"status\":\"success\",\"result\":\"ok\"}"));
+        audd.customCatalog().add(5_000_000_000L, "https://example.com/song.mp3");
+        assertThat(server.takeRequest().getBody().readUtf8()).contains("5000000000");
     }
 
     @Test
@@ -123,6 +130,8 @@ class CustomCatalogTest {
             long started = System.nanoTime();
             assertThatThrownBy(() -> isolated.customCatalog().add(123, "https://example.com/song.mp3").get())
                 .isInstanceOf(ExecutionException.class)
+                .cause()
+                .isInstanceOf(AudDConnectionError.class)
                 .hasCauseInstanceOf(IOException.class);
             long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
             assertThat(elapsedMs).isLessThan(2_000);

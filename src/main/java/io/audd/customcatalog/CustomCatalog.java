@@ -44,10 +44,20 @@ public final class CustomCatalog {
      * slot. There is no public list/delete endpoint; track {@code audioId}
      * &harr; song mappings on your side.</p>
      *
+     * <p>The upload is sent once and never retried automatically, whatever
+     * {@code maxRetries} is set to: check the error before sending it again
+     * (an upload to an {@code audioId} that already holds a song replaces
+     * it).</p>
+     *
      * @param audioId integer slot in your custom catalog
      * @param source URL string, file path, Path, File, byte[], or InputStream
      */
     public void add(int audioId, Object source) {
+        add((long) audioId, source);
+    }
+
+    /** {@link #add(int, Object)} for a {@code long} audio_id. */
+    public void add(long audioId, Object source) {
         SourcePreparer.Prepared prepared;
         try {
             prepared = SourcePreparer.prepare(source);
