@@ -157,4 +157,30 @@ class EventHookTest {
             assertThat(events.get(1).requestId()).isEqualTo("req-async");
         }
     }
+
+    @Test
+    void onEvent_namesEnterpriseCallsRecognizeEnterprise() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.start();
+            server.enqueue(new MockResponse().setBody("{\"status\":\"success\",\"result\":[]}"));
+            server.enqueue(new MockResponse().setBody("{\"status\":\"success\",\"result\":[]}"));
+            String base = server.url("/").toString().replaceAll("/$", "");
+
+            List<AudDEvent> events = new CopyOnWriteArrayList<>();
+            AudD.Builder builder = AudD.builder()
+                    .apiToken("test-token")
+                    .enterpriseBase(base)
+                    .maxRetries(1).backoffFactorMs(1)
+                    .onEvent(events::add);
+            EnterpriseOptions one = EnterpriseOptions.builder().limit(1).build();
+            try (AudD a = builder.build(); AsyncAudD b = builder.buildAsync()) {
+                a.recognizeEnterprise("https://example.com/a.mp3", one);
+                b.recognizeEnterprise("https://example.com/a.mp3", one).get();
+            }
+
+            assertThat(events).hasSize(4);
+            assertThat(events).extracting(AudDEvent::method).containsOnly("recognizeEnterprise");
+            assertThat(events).extracting(AudDEvent::url).containsOnly(base + "/");
+        }
+    }
 }

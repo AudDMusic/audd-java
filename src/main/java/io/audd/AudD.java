@@ -190,7 +190,7 @@ public final class AudD implements AutoCloseable {
         Long timeoutMs = opts == null ? null : opts.timeoutMs();
 
         String url = enterpriseBase + "/";
-        safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
+        safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognizeEnterprise").url(url).build());
         long started = System.nanoTime();
 
         HttpResponse resp;
@@ -200,12 +200,12 @@ public final class AudD implements AutoCloseable {
             long elapsed = (System.nanoTime() - started) / 1_000_000L;
             Map<String, Object> extras = new HashMap<>();
             extras.put("error_type", e.getClass().getSimpleName());
-            safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognize").url(url)
+            safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognizeEnterprise").url(url)
                     .elapsedMs(elapsed).extras(extras).build());
             throw new AudDConnectionError(e.getMessage() == null ? "connection error" : e.getMessage(), e);
         }
         long elapsed = (System.nanoTime() - started) / 1_000_000L;
-        safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.RESPONSE).method("recognize").url(url)
+        safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.RESPONSE).method("recognizeEnterprise").url(url)
                 .requestId(resp.requestId()).httpStatus(resp.httpStatus()).elapsedMs(elapsed).build());
         JsonNode body = ResponseDecoder.decodeOrRaise(resp, onDeprecation, false);
         JsonNode result = body.path("result");

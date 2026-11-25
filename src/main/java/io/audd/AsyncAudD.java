@@ -129,7 +129,7 @@ public final class AsyncAudD implements AutoCloseable {
         Long timeoutMs = opts == null ? null : opts.timeoutMs();
 
         String url = enterpriseBase + "/";
-        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognize").url(url).build());
+        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.REQUEST).method("recognizeEnterprise").url(url).build());
         long started = System.nanoTime();
 
         return recognitionPolicy.runAsync(() -> doAsyncCall(enterpriseHttp, url, base, prepared, timeoutMs))
@@ -138,10 +138,10 @@ public final class AsyncAudD implements AutoCloseable {
                     if (exc != null) {
                         Map<String, Object> extras = new HashMap<>();
                         extras.put("error_type", errorType(exc));
-                        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognize")
+                        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.EXCEPTION).method("recognizeEnterprise")
                                 .url(url).elapsedMs(elapsed).extras(extras).build());
                     } else if (resp != null) {
-                        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.RESPONSE).method("recognize")
+                        AudD.safeEmit(onEvent, AudDEvent.builder().kind(AudDEvent.Kind.RESPONSE).method("recognizeEnterprise")
                                 .url(url).requestId(resp.requestId()).httpStatus(resp.httpStatus())
                                 .elapsedMs(elapsed).build());
                     }

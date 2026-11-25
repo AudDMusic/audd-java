@@ -2,7 +2,7 @@ package io.audd.internal;
 
 /** SDK identifier sent on every request. */
 public final class UserAgent {
-    public static final String SDK_VERSION = "1.5.20";
+    public static final String SDK_VERSION = "1.5.21";
 
     private UserAgent() {}
 

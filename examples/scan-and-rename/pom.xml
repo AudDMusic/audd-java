@@ -23,7 +23,7 @@
     <dependency>
       <groupId>io.audd</groupId>
       <artifactId>audd</artifactId>
-      <version>1.5.20</version>
+      <version>1.5.21</version>
     </dependency>
     <!-- jaudiotagger reads/writes ID3v2, FLAC Vorbis, MP4, OGG, WAV INFO etc.
          Licensed LGPL 2.1; see this example's README.md. -->

@@ -49,7 +49,7 @@ public final class AudDEvent {
     }
 
     public Kind kind() { return kind; }
-    /** AudD method name (e.g., {@code "recognize"}, {@code "addStream"}). */
+    /** The call the event belongs to: {@code "recognize"} or {@code "recognizeEnterprise"}. */
     public String method() { return method; }
     /** Endpoint URL targeted by the request (no query params). */
     public String url() { return url; }
